@@ -362,6 +362,11 @@ function init() {
         g.sprites.player.attack = new Sprite(rogueSheet, 32, 32, tx, [3*32])
         g.sprites.player.death = new Sprite(rogueSheet, 32, 32, tx, [4*32])
 
+        var shadow = new Image()
+        shadow.src = "assets/shadow.png"
+
+        g.sprites.player.shadow = new Sprite(shadow, 16,16, [0],[0])
+
         var floor = new Image();
         floor.src = "assets/dungeon_floor.png"
 
@@ -702,6 +707,8 @@ function init() {
             }
 
             ctx.translate(-movingx, -movingy)
+
+            g.sprites.player.shadow.next(ctx, -size*0.45, -size*0.25, size*0.9, size*0.75)
 
             if (left) {
                 ctx.save()
