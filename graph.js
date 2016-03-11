@@ -54,7 +54,6 @@ function isCyclic(g) {
     for (var i = 0 ; i < g.nodes.length ; i++ ) {
         sets.push(new Set([g.nodes[i].id]))
     }
-    // console.log(sets);
     for (var i = 0 ; i < g.edges.length ; i++ ) {
         var edge = g.edges[i]
         var match = []
@@ -74,11 +73,9 @@ function isCyclic(g) {
                 indices.push(j)
             }
         }
-        // console.log(sets,edge[0].id, edge[1].id, match, indices)
         if (indices[0] == indices[1]) return true
         union(match[0],match[1])
         sets.splice(indices[0],1)
-        // debugger;
     }
     return false
 }
@@ -93,17 +90,12 @@ function kruskalMST(g,fn) {
     g.edges.sort(function(a,b) {
         return fn(a)-fn(b)
     })
-    // var i = 0
-    // while (ret.edges.length < V - 1) {
     for (var i = 0 ; i < g.edges.length; i++) {
         var e = g.edges[i]
         ret.connect(e[0].id,e[1].id)
-        // console.log(ret);
         if (isCyclic(ret)) {
-            // console.log("fuck");
             ret.disconnect(e[0].id,e[1].id)
         }
-        // i++
     }
     return ret
 }

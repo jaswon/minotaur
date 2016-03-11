@@ -673,8 +673,6 @@ function init() {
             ctx.fillStyle = "black"
             ctx.fillRect(0,0,g.w,g.h)
 
-            // ctx.save()
-
             ctx.lineWidth = 1
 
             ctx.beginPath();
