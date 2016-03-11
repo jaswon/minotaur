@@ -338,8 +338,6 @@ function init() {
             py = Math.floor(Math.random()*map.length)
         } while (map[py][px] < 0)
 
-        // map[py][px] = 1
-
         g.save.map = map
 
         g.save.player = {}
@@ -405,7 +403,7 @@ function init() {
         g.sprites.floor[80] = new Sprite(floor,16,16,[16],[0])              // 01010000
         g.sprites.floor[81] = new Sprite(floor,16,16,[416],[0])             // 01010001
         g.sprites.floor[82] = new Sprite(floor,16,16,[272],[0])             // 01010010
-        g.sprites.floor[90] = new Sprite(floor,16,16,[288],[0])             // 01011000
+        g.sprites.floor[88] = new Sprite(floor,16,16,[288],[0])             // 01011000
         g.sprites.floor[92] = new Sprite(floor,16,16,[400],[0])             // 01011010
         g.sprites.floor[128] = new Sprite(floor,16,16,[304],[16])           // 10000000
         g.sprites.floor[129] = new Sprite(floor,16,16,[192],[16])           // 10000001
@@ -587,7 +585,6 @@ function init() {
             index = n.reduce(function(p,c,i) {
                 return p + c*Math.pow(2,i)
             }, 0)
-            // console.log(index);
             g.sprites.floor[index].next(g.ctx,size*a-size/2, size*b-size/2,size,size,m[b+y][a+x])
 
             if (g.save.map[b+y-1] == undefined || g.save.map[b+y-1][a+x] < 0) {
@@ -641,22 +638,18 @@ function init() {
 
             processInputs(g.inq, {
                 87: function() { // w
-                    // if (!dir) dir = 1
                     movement[0] = 1
                     movestack.push(1)
                 },
                 65: function() { // a
-                    // if (!dir) dir = 2
                     movement[1] = 1
                     movestack.push(2)
                 },
                 83: function() { // s
-                    // if (!dir) dir = 3
                     movement[2] = 1
                     movestack.push(3)
                 },
                 68: function() { // d
-                    // if (!dir) dir = 4
                     movement[3] = 1
                     movestack.push(4)
                 },
@@ -674,8 +667,6 @@ function init() {
                 },
                 81: function() { // q
                     g.state = "debug"
-                    // ctx.save()
-                    // ctx.
                 }
             })
 
