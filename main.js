@@ -1,7 +1,7 @@
 // input queue manager
 function processInputs (q, commands) {
     while (q.length) {
-        var input = q.pop()
+        var input = q.shift()
         if (input in commands) {
             commands[input]()
         }
@@ -60,8 +60,19 @@ function init() {
         states: [],
         state: "menu",
         inq: [], // input queue
-        save: {}
+        save: {},
+        first: true
     }
+
+    console.log(game);
+
+    var size = 64
+    var c = 4
+
+    var gridw = Math.ceil(Math.floor(game.w / size) / 2) * 2 + 4
+    var gridh = Math.ceil(Math.floor(game.h / size) / 2) * 2 + 4
+
+    var vradius = (gridh - 4)/2
 
     // generator states (this is beautiful)
 
@@ -80,7 +91,7 @@ function init() {
                 ctx.fillRect(0,0,g.w,g.h)
                 fade++
                 if (fade > 85) {
-                    g.state = "gen" // change state to play
+                    g.state = "gen" // change state to gen
                     pos = 0
                     fade = 0
                 }
@@ -132,7 +143,9 @@ function init() {
     // generate map
     // http://www.gamasutra.com/blogs/AAdonaac/20150903/252889/Procedural_Dungeon_Generation_Algorithm.php
     game.states["gen"] = (function*(g){
-        var c = 4 // cell size
+
+        g.ctx.fillStyle = "black"
+        g.ctx.fillRect(0,0,g.w,g.h)
 
         var rects = []
 
@@ -163,7 +176,6 @@ function init() {
         }
 
         var colliding = true
-        var next = false
 
         while (colliding) { // resolve collisions
             colliding = false
@@ -223,21 +235,22 @@ function init() {
             if (y + h > maxy) maxy = y + h
         }
 
-        miny -= c
+        miny -= c * vradius
+        minx -= c * vradius
 
         var map = []
-        var mw = (maxx - minx) / c
-        var mh = (maxy - miny) / c + 2
+        var mw = (maxx - minx) / c + vradius
+        var mh = (maxy - miny) / c + vradius
 
         function texture(n) {
-            return Math.floor(Math.random()*n)
+            return Math.floor(Math.random()*n)+1
         }
 
         // map initialization
         for (var i = 0 ; i < mh ; i++) {
             map[i] = []
             for (var j = 0 ; j < mw ; j++) {
-                map[i][j] = -1*(texture(4)+1)
+                map[i][j] = -1*texture(4) // -1,-2,-3,-4
             }
         }
 
@@ -333,10 +346,22 @@ function init() {
 
         var px, py
 
+        // initialize player position
         do {
             px = Math.floor(Math.random()*map[0].length)
             py = Math.floor(Math.random()*map.length)
         } while (map[py][px] < 0)
+
+        // place drops
+        for (var i = 0 ; i < 100 ; i++) {
+            var drop = Math.floor(Math.random()*2)+1
+            var dropx, dropy
+            do {
+                dropx = Math.floor(Math.random()*map[0].length)
+                dropy = Math.floor(Math.random()*map.length)
+            } while (map[dropy][dropx] < 0 || map[dropy][dropx] > 100)
+            map[dropy][dropx] += drop * 100
+        }
 
         g.save.map = map
 
@@ -344,6 +369,9 @@ function init() {
 
         g.save.player.x = px
         g.save.player.y = py
+
+        g.save.player.health = 1
+        g.save.player.stamina = 1
 
         g.sprites = {}
         g.sprites.player = {} // player sprites
@@ -358,7 +386,7 @@ function init() {
 
         g.sprites.player.idle = new Sprite(rogueSheet, 32, 32, tx, [0], 15)
         g.sprites.player.gesture = new Sprite(rogueSheet, 32, 32, tx, [1*32])
-        g.sprites.player.walk = new Sprite(rogueSheet, 32, 32, tx, [2*32], 5)
+        g.sprites.player.walk = new Sprite(rogueSheet, 32, 32, tx, [2*32], 8)
         g.sprites.player.attack = new Sprite(rogueSheet, 32, 32, tx, [3*32])
         g.sprites.player.death = new Sprite(rogueSheet, 32, 32, tx, [4*32])
 
@@ -366,6 +394,16 @@ function init() {
         shadow.src = "assets/shadow.png"
 
         g.sprites.player.shadow = new Sprite(shadow, 16,16, [0],[0])
+
+        var glow = new Image()
+        glow.src = "assets/glow.png"
+
+        g.sprites.player.glow = new Sprite(glow,128,128,[0],[0])
+
+        var rogue_icon = new Image()
+        rogue_icon.src = "assets/rogue_icon.png"
+
+        g.sprites.player.icon = new Sprite(rogue_icon,6,6,[0],[0])
 
         var floor = new Image();
         floor.src = "assets/dungeon_floor.png"
@@ -409,7 +447,7 @@ function init() {
         g.sprites.floor[81] = new Sprite(floor,16,16,[416],[0])             // 01010001
         g.sprites.floor[82] = new Sprite(floor,16,16,[272],[0])             // 01010010
         g.sprites.floor[88] = new Sprite(floor,16,16,[288],[0])             // 01011000
-        g.sprites.floor[92] = new Sprite(floor,16,16,[400],[0])             // 01011010
+        g.sprites.floor[90] = new Sprite(floor,16,16,[400],[0])             // 01011010
         g.sprites.floor[128] = new Sprite(floor,16,16,[304],[16])           // 10000000
         g.sprites.floor[129] = new Sprite(floor,16,16,[192],[16])           // 10000001
         g.sprites.floor[130] = new Sprite(floor,16,16,[80],[16])            // 10000010
@@ -429,10 +467,14 @@ function init() {
 
         g.sprites.wall = [] // wall sprites
 
-        g.sprites.wall[0] = new Sprite(wall,16,32,[16,32,48,64],[0]) // 00
-        g.sprites.wall[1] = new Sprite(wall,16,32,[80],[0]) // 01
-        g.sprites.wall[2] = new Sprite(wall,16,32,[0],[0]) // 10
-        g.sprites.wall[3] = new Sprite(wall,16,32,[96],[0]) // 11
+        g.sprites.wall[0] = new Sprite(wall,16,16,[16,32,48,64],[0]) // 00
+        g.sprites.wall[1] = new Sprite(wall,16,16,[80],[0]) // 01
+        g.sprites.wall[2] = new Sprite(wall,16,16,[0],[0]) // 10
+        g.sprites.wall[3] = new Sprite(wall,16,16,[96],[0]) // 11
+        g.sprites.wall[4] = new Sprite(wall,16,16,[16,32,48,64],[16]) // 00
+        g.sprites.wall[5] = new Sprite(wall,16,16,[80],[16]) // 01
+        g.sprites.wall[6] = new Sprite(wall,16,16,[0],[16]) // 10
+        g.sprites.wall[7] = new Sprite(wall,16,16,[96],[16]) // 11
 
         var ceiling = new Image();
         ceiling.src = "assets/dungeon_ceiling.png"
@@ -472,7 +514,7 @@ function init() {
         g.sprites.ceiling[81] = new Sprite(ceiling,16,16,[416],[0])             // 01010001
         g.sprites.ceiling[82] = new Sprite(ceiling,16,16,[272],[0])             // 01010010
         g.sprites.ceiling[88] = new Sprite(ceiling,16,16,[288],[0])             // 01011000
-        g.sprites.ceiling[92] = new Sprite(ceiling,16,16,[400],[0])             // 01011010
+        g.sprites.ceiling[90] = new Sprite(ceiling,16,16,[400],[0])             // 01011010
         g.sprites.ceiling[128] = new Sprite(ceiling,16,16,[304],[16])           // 10000000
         g.sprites.ceiling[129] = new Sprite(ceiling,16,16,[192],[16])           // 10000001
         g.sprites.ceiling[130] = new Sprite(ceiling,16,16,[80],[16])            // 10000010
@@ -487,7 +529,66 @@ function init() {
         g.sprites.ceiling[164] = new Sprite(ceiling,16,16,[240],[16])           // 10100100
         g.sprites.ceiling[165] = new Sprite(ceiling,16,16,[288],[16])           // 10100101
 
+        var hud = new Image()
+        hud.src = "assets/hud_top_left.png"
+
+        var fill = new Image()
+        fill.src = "assets/fill.png"
+
+        var scroll = new Image()
+        scroll.src = "assets/scroll.png"
+
+        var scroll_mask = new Image()
+        scroll_mask.src = "assets/scroll_mask.png"
+
+        var drops_sil = new Image()
+        drops_sil.src = "assets/drops1_silhouette.png"
+
+        g.sprites.hud = {}
+
+        g.sprites.hud.topleft = new Sprite(hud,192,64,[0],[0])
+        g.sprites.hud.hfill = new Sprite(fill,2,8,[0],[0])
+        g.sprites.hud.sfill = new Sprite(fill,2,8,[2],[0])
+        g.sprites.hud.scroll = new Sprite(scroll,119,90,[0],[0])
+        g.sprites.hud.mask = new Sprite(scroll_mask,119,90,[0],[0])
+        g.sprites.hud.rope = new Sprite(drops_sil,16,16,[0],[0])
+        g.sprites.hud.scrap = new Sprite(drops_sil,16,16,[16],[0])
+
+        var drops = new Image()
+        drops.src = "assets/drops1.png"
+
+        g.sprites.drops = []
+
+        g.sprites.drops[0] = new Sprite(drops,16,16,[0],[0])
+        g.sprites.drops[1] = new Sprite(drops,16,16,[16],[0])
+
+        // g.sprites.anim = {}
+        //
+        // g.sprites.anim.collect = function* (type, val) {
+        //
+        // }
+
+        g.save.player.map = {}
+
+        var mapcvs = document.createElement('canvas');
+        mapcvs.width = g.w*0.7
+        mapcvs.height = g.h*0.85
+
+        g.save.player.map.ctx = mapcvs.getContext("2d")
+        g.save.player.map.ctx.imageSmoothingEnabled = false;
+
+        g.save.player.map.pos = g.h
+        g.save.player.map.maxVel = 50
+        g.save.player.map.vel = 0
+        g.save.player.map.out = false
+
+        g.save.player.inv = {}
+
+        g.save.player.inv.rope = 0
+        g.save.player.inv.scraps = 0
+
         g.state = "play"
+
 
         yield
 
@@ -498,113 +599,162 @@ function init() {
         var playersprite = g.sprites.player.idle
         var left = false
 
-        var size = 64
+        g.save.player.xpart = size / 2
+        g.save.player.ypart = size / 2
 
         var vel = 4
-        var del = 0
-
-        var dir = 0
-
-        var movingx = 0
-        var movingy = 0
-
-        var movement = [0,0,0,0]
-        var movestack = []
-
-        var gridw = Math.ceil(Math.floor(g.w*0.9 / size) / 2)*2 + 2
-        var gridh = Math.ceil(Math.floor(g.h*0.65 / size) / 2)*2 + 2
+        var movement = [0,0,0,0] // up, left, down, right
 
         ctx.imageSmoothingEnabled = false;
-
-        var log = true
 
         function impassable (m,x,y) {
             return m[y] == undefined || m[y][x] == undefined || m[y][x] < 0
         }
 
         function walk() {
-            if (dir) {
-                if (dir == 1 && impassable(g.save.map,g.save.player.x,g.save.player.y-1) ||
-                    dir == 2 && impassable(g.save.map,g.save.player.x-1,g.save.player.y) ||
-                    dir == 3 && impassable(g.save.map,g.save.player.x,g.save.player.y+1) ||
-                    dir == 4 && impassable(g.save.map,g.save.player.x+1,g.save.player.y) ) {
-                        dir = 0
-                        playersprite = g.sprites.player.idle
-                        return
-                }
-                if (dir == 2) left = true
-                if (dir == 4) left = false
-                if (del < size) {
-                    switch (dir) {
-                        case 1: movingy = del; break;
-                        case 2: movingx = del; break;
-                        case 3: movingy = -del; break;
-                        case 4: movingx = -del; break;
+
+            if (movement[0]) { // attempt to move up
+                if (g.save.player.ypart != size / 2) {
+                    g.save.player.ypart -= vel
+                } else if (!impassable(g.save.map, g.save.player.x, g.save.player.y-1)) {
+                    if (g.save.player.xpart == size / 2) {
+                        g.save.player.ypart -= vel
+                    } else if (!impassable(g.save.map, g.save.player.x+1, g.save.player.y-1)) {
+                        g.save.player.ypart -= vel
                     }
-                    del += vel
-                    playersprite = g.sprites.player.walk
-                } else {
-                    del = 0
-                    movingx = 0
-                    movingy = 0
-                    switch (dir) {
-                        case 1: g.save.player.y -= 1; break;
-                        case 2: g.save.player.x -= 1; break;
-                        case 3: g.save.player.y += 1; break;
-                        case 4: g.save.player.x += 1; break;
-                    }
-                    while (movestack.length && !movement[movestack[movestack.length-1]-1]) {
-                        movestack.pop()
-                    }
-                    if (movestack.length) {
-                        dir = movestack[movestack.length-1]
-                    } else {
-                        dir = 0
-                        playersprite = g.sprites.player.idle
-                    }
-                }
-            } else {
-                if (movestack.length) {
-                    dir = movestack[movestack.length-1]
                 }
             }
+            if (movement[1]) { // attempt to move left
+                if (g.save.player.xpart != size / 2) {
+                    g.save.player.xpart -= vel
+                } else if (!impassable(g.save.map, g.save.player.x-1, g.save.player.y)) {
+                    if (g.save.player.ypart == size / 2) {
+                        g.save.player.xpart -= vel
+                    } else if (!impassable(g.save.map, g.save.player.x-1, g.save.player.y+1)) {
+                        g.save.player.xpart -= vel
+                    }
+                }
+            }
+            if (movement[2]) { // attempt to move down
+                if (g.save.player.ypart != size / 2) {
+                    g.save.player.ypart += vel
+                } else if (!impassable(g.save.map, g.save.player.x, g.save.player.y+1)) {
+                    if (g.save.player.xpart == size / 2) {
+                        g.save.player.ypart += vel
+                    } else if (!impassable(g.save.map, g.save.player.x+1, g.save.player.y+1)) {
+                        g.save.player.ypart += vel
+                    }
+                }
+            }
+            if (movement[3]) { // attempt to move right
+                if (g.save.player.xpart != size / 2) {
+                    g.save.player.xpart += vel
+                } else if (!impassable(g.save.map, g.save.player.x+1, g.save.player.y)) {
+                    if (g.save.player.ypart == size / 2) {
+                        g.save.player.xpart += vel
+                    } else if (!impassable(g.save.map, g.save.player.x+1, g.save.player.y+1)) {
+                        g.save.player.xpart += vel
+                    }
+                }
+            }
+
+            if (movement.indexOf(1) > -1) {
+                playersprite = g.sprites.player.walk
+                g.save.player.stamina -= 0.0002
+            } else {
+                playersprite = g.sprites.player.idle
+                if (g.save.player.stamina < 1) g.save.player.stamina += 0.0001
+            }
+
+            if (movement[1] && !movement[3]) {
+                left = true
+            } else if (movement[3] && !movement[1]) {
+                left = false
+            }
+
+            // parts constrained to [size * 0.5, size * 1.5)
+
+            if (g.save.player.xpart >=  size*3/2) {
+                g.save.player.xpart -= size;
+                g.save.player.x++
+            }
+            if (g.save.player.xpart < size/2) {
+                g.save.player.xpart += size;
+                g.save.player.x--
+            }
+            if (g.save.player.ypart >=  size*3/2) {
+                g.save.player.ypart -= size;
+                g.save.player.y++
+            }
+            if (g.save.player.ypart < size/2) {
+                g.save.player.ypart += size;
+                g.save.player.y--
+            }
+
+            // pick up drops
+
+            (function() {
+                if (g.save.player.xpart > size / 2 && g.save.player.ypart > size / 2) return [[0,0],[1,0],[0,1],[1,1]]
+                if (g.save.player.xpart == size / 2 && g.save.player.ypart > size / 2) return [[0,0],[0,1]]
+                if (g.save.player.xpart > size / 2 && g.save.player.ypart == size / 2) return [[0,0],[1,0]]
+                return [[0,0]]
+            })().forEach(function(pair) {
+                if (g.save.map[g.save.player.y+pair[1]][g.save.player.x+pair[0]] >= 100) {
+                    switch(Math.floor(g.save.map[g.save.player.y+pair[1]][g.save.player.x+pair[0]]/100)) {
+                        case 1: // rope
+                            g.save.player.inv.rope += 10 + Math.floor(Math.random()*10)
+                            break
+                        case 2: // scraps
+                            g.save.player.inv.scraps += 1 + Math.floor(Math.random()*3)
+                            break
+                    }
+                    g.save.map[g.save.player.y+pair[1]][g.save.player.x+pair[0]] -= Math.floor(g.save.map[g.save.player.y+pair[1]][g.save.player.x+pair[0]]/100)*100
+                }
+            })
+
         }
 
-        function drawFloor(a,x,b,y) {
-            var n = [0,0,0,0,0,0,0,0]
-            var m = g.save.map
-            var count = 0
-            for (var i = 1 ; i >= -1 ; i--) {
-                for (var j = 1 ; j >= -1 ; j--) {
-                    if (i == 0 && j == 0) continue
-                    if (m[b+y+i] == undefined || m[b+y+i][a+x+j] == undefined || m[b+y+i][a+x+j] < 0) { // wall / unpassable
-                        n[count] = 1
+        function drawFloor(a,x,b,y,again) {
+            if (!again) {
+                var n = [0,0,0,0,0,0,0,0]
+                var m = g.save.map
+                var count = 0
+                for (var i = 1 ; i >= -1 ; i--) {
+                    for (var j = 1 ; j >= -1 ; j--) {
+                        if (i == 0 && j == 0) continue
+                        if (m[b+y+i] == undefined || m[b+y+i][a+x+j] == undefined || m[b+y+i][a+x+j] < 0) { // wall / unpassable
+                            n[count] = 1
+                        }
+                        count++
                     }
-                    count++
+                }
+                if (n[1] || n[3]) n[0] = 0
+                if (n[1] || n[4]) n[2] = 0
+                if (n[3] || n[6]) n[5] = 0
+                if (n[4] || n[6]) n[7] = 0
+                index = n.reduce(function(p,c,i) {
+                    return p + c*Math.pow(2,i)
+                }, 0)
+                g.sprites.floor[index].next(g.ctx,size*a-g.save.player.xpart, size*b-g.save.player.ypart,size,size,m[b+y][a+x]%10)
+
+                if (m[b+y][a+x] >= 100) { // drop at this tile
+                    g.sprites.drops[Math.floor(m[b+y][a+x]/100)-1].next(g.ctx,size*a-g.save.player.xpart, size*b-g.save.player.ypart,size,size)
                 }
             }
-            if (n[1] || n[3]) n[0] = 0
-            if (n[1] || n[4]) n[2] = 0
-            if (n[3] || n[6]) n[5] = 0
-            if (n[4] || n[6]) n[7] = 0
-            index = n.reduce(function(p,c,i) {
-                return p + c*Math.pow(2,i)
-            }, 0)
-            g.sprites.floor[index].next(g.ctx,size*a-size/2, size*b-size/2,size,size,m[b+y][a+x])
 
             if (g.save.map[b+y-1] == undefined || g.save.map[b+y-1][a+x] < 0) {
-                drawWall(a,x,b-1,y)
+                drawWall(a,x,b-1,y,again)
             }
         }
 
-        function drawWall (a,x,b,y) {
+        function drawWall (a,x,b,y,again) {
             var n = 0
             var m = g.save.map
-            if (m[b+y] != undefined && m[b+y][a+x-1] != undefined && m[b+y][a+x-1] > -1) n += 2
-            if (m[b+y] != undefined && m[b+y][a+x+1] != undefined && m[b+y][a+x+1] > -1) n += 1
+            if (m[b+y] != undefined && m[b+y][a+x-1] != undefined && m[b+y][a+x-1] > 0) n += 2
+            if (m[b+y] != undefined && m[b+y][a+x+1] != undefined && m[b+y][a+x+1] > 0) n += 1
             var t = 0
-            if (m[b+y] != undefined && m[b+y][a+x] != undefined) t = m[b+y][a+x]*-1
-            g.sprites.wall[n].next(g.ctx,size*a-size/2, size*(b-1)-size/2,size,size*2,t)
+            if (m[b+y] != undefined && m[b+y][a+x] != undefined) t = (m[b+y][a+x]*-1)%10 -1
+            g.sprites.wall[n+(again?0:4)].next(g.ctx,size*a-g.save.player.xpart, size*(b-(again?1:0))-g.save.player.ypart,size,size,t)
         }
 
         function drawCeiling (a,x,b,y) {
@@ -628,9 +778,9 @@ function init() {
                 return p + c*Math.pow(2,i)
             }, 0)
             var t = 0
-            if (m[b+y] != undefined && m[b+y][a+x] != undefined) t = m[b+y][a+x]*-1
+            if (m[b+y] != undefined && m[b+y][a+x] != undefined) t = (m[b+y][a+x]*-1)%10 - 1
             try {
-                g.sprites.ceiling[index].next(g.ctx,size*a-size/2, size*(b-2)-size/2,size,size,t)
+                g.sprites.ceiling[index].next(g.ctx,size*a-g.save.player.xpart, size*(b-2)-g.save.player.ypart,size,size,t)
             } catch (e) {
                 console.log(n, index);
             }
@@ -643,20 +793,16 @@ function init() {
 
             processInputs(g.inq, {
                 87: function() { // w
-                    movement[0] = 1
-                    movestack.push(1)
+                    if (!movement[0] && !g.save.player.map.out) movement[0] = 1
                 },
                 65: function() { // a
-                    movement[1] = 1
-                    movestack.push(2)
+                    if (!movement[1] && !g.save.player.map.out) movement[1] = 1
                 },
                 83: function() { // s
-                    movement[2] = 1
-                    movestack.push(3)
+                    if (!movement[2] && !g.save.player.map.out) movement[2] = 1
                 },
                 68: function() { // d
-                    movement[3] = 1
-                    movestack.push(4)
+                    if (!movement[3] && !g.save.player.map.out) movement[3] = 1
                 },
                 "-87": function() {
                     movement[0] = 0
@@ -670,8 +816,62 @@ function init() {
                 "-68": function() {
                     movement[3] = 0
                 },
-                81: function() { // q
-                    g.state = "debug"
+                77: function() { // m
+                    // showMap()
+                    movement = [0,0,0,0]
+                    g.save.player.map.vel = g.save.player.map.maxVel * (g.save.player.map.out?1:-1)
+                    g.save.player.map.out = !g.save.player.map.out
+                    g.save.player.map.bounce = (function*() {
+                        var speed = 100
+                        var count = speed
+                        while (true) {
+                            if (count-- < 0) {
+                                count = speed
+                            }
+                            yield Math.sin(count/speed*2*Math.PI)/2
+                        }
+                    })()
+
+                    var xc = g.w*0.70/g.save.map[0].length
+                    var yc = g.h*0.85/g.save.map.length
+
+                    var sc = Math.min(xc,yc)
+
+                    g.save.player.map.ctx.clearRect(0,0,g.w*0.7, g.h*0.85)
+
+                    g.save.player.map.ctx.lineWidth = 1
+
+                    for (var i = 0 ; i < g.save.map.length ; i++) {
+                        for (var j = 0 ; j < g.save.map[0].length ; j++) {
+                            if (g.save.map[i][j] % 100 >= 10) { // location was seen
+                                g.save.player.map.ctx.fillStyle = "grey"
+                                g.save.player.map.ctx.strokeStyle = "grey"
+                                g.save.player.map.ctx.fillRect(j*sc,i*sc,sc,sc)
+                                g.save.player.map.ctx.strokeRect(j*sc,i*sc,sc,sc)
+                            } else if (g.save.map[i][j] < 0 && (function() {
+                                for (var k = -1 ; k < 2 ; k++) {
+                                    for (var l = -1 ; l < 2 ; l++) {
+                                        if ((k+l)%2==0) continue
+                                        if (!impassable(g.save.map,j+l,i+k) && g.save.map[i+k][j+l] % 100 >= 10) { // seen
+                                            return true
+                                        }
+                                    }
+                                }
+                                return false
+                            })()) { // impassable but next to not wall
+                                g.save.player.map.ctx.fillStyle = "black"
+                                g.save.player.map.ctx.strokeStyle = "black"
+                                g.save.player.map.ctx.fillRect(j*sc,i*sc,sc,sc)
+                                g.save.player.map.ctx.strokeRect(j*sc,i*sc,sc,sc)
+                            }
+                        }
+                    }
+
+
+                },
+                69: function() { // e
+                    // user actions
+
                 }
             })
 
@@ -680,33 +880,29 @@ function init() {
 
             ctx.lineWidth = 1
 
-            ctx.beginPath();
-            ctx.moveTo(g.w*0.05, g.h*0.07)
-            ctx.lineTo(g.w*0.05, g.h*0.72)
-            ctx.lineTo(g.w*0.95, g.h*0.72)
-            ctx.lineTo(g.w*0.95, g.h*0.07)
-            ctx.closePath()
-            ctx.clip();
-
             ctx.save()
-            ctx.translate(g.w*0.5, g.h*0.395)
+            ctx.translate(g.w*0.5, g.h*0.5)
 
-            ctx.translate(movingx, movingy)
+            ctx.beginPath();
+            ctx.arc(0,0,size*(gridh-4)/2*0.98,0,Math.PI*2,true);
+            ctx.clip();
 
             var x = g.save.player.x
             var y = g.save.player.y
 
+            // draw floor + bottom part of walls
+
             for (var i = -gridw/2 ; i <= gridw/2 ; i++) {
-                for (var j = -gridh/2 ; j <= gridh/2 + 1; j++) {
+                for (var j = -gridh/2 ; j <= gridh/2 + 2; j++) {
                     if (g.save.map[j+y] != undefined) {
                         if (g.save.map[j+y][i+x] > -1){
-                            drawFloor(i,x,j,y)
+                            drawFloor(i,x,j,y,false)
                         }
                     }
                 }
             }
 
-            ctx.translate(-movingx, -movingy)
+            // draw player
 
             g.sprites.player.shadow.next(ctx, -size*0.45, -size*0.25, size*0.9, size*0.75)
 
@@ -717,13 +913,48 @@ function init() {
             playersprite.next(ctx, -size*0.7, -size*1.3, size*1.5, size*1.5)
             if (left) ctx.restore()
 
-            ctx.translate(movingx, movingy)
+            // draw top parts of walls + ceiling (drawing order for depth perception)
 
             for (var i = -gridw/2 ; i <= gridw/2 ; i++) {
                 for (var j = -gridh/2 ; j <= gridh/2 + 2; j++) {
                     if (g.save.map[j+y] != undefined) {
                         if (g.save.map[j+y][i+x] < 0) {
                             drawCeiling(i,x,j,y)
+                        } else if (g.save.map[j+y][i+x] > -1){
+                            drawFloor(i,x,j,y,true)
+                        }
+                    }
+                }
+            }
+
+            // show grid lines (DEBUG) (KEEP, I KNOW YOU'RE GONNA NEED THIS IN THE FUTURE)
+
+            // ctx.strokeStyle = "white"
+            //
+            // for (var i = -gridw/2 ; i <= gridw/2 ; i++) {
+            //     ctx.beginPath()
+            //     ctx.moveTo(i*size-g.save.player.xpart,-g.h/2)
+            //     ctx.lineTo(i*size-g.save.player.xpart,g.h/2)
+            //     ctx.stroke()
+            // }
+            //
+            // for (var j = -gridh/2 ; j <= gridh/2 + 2; j++) {
+            //     ctx.beginPath()
+            //     ctx.moveTo(-g.w/2,j*size-g.save.player.ypart)
+            //     ctx.lineTo(g.w/2,j*size-g.save.player.ypart)
+            //     ctx.stroke()
+            // }
+
+            g.sprites.player.glow.next(ctx, -size*(gridh-4)/2, -size*(gridh-4)/2, size*(gridh-4), size*(gridh-4))
+
+            for (var i = -vradius ; i <= vradius ; i++) {
+                for (var j = -vradius ; j <= vradius ; j++) {
+                    if (i*i+j*j < vradius*vradius) {
+                        var x = g.save.map[g.save.player.y+j][g.save.player.x+i]
+                        if (x < 0 && x > -10) { // impassable, first time seeing
+                            g.save.map[g.save.player.y+j][g.save.player.x+i] -= 10
+                        } else if (x > 0 && x % 100 < 10) { // passable, first time seeing
+                            g.save.map[g.save.player.y+j][g.save.player.x+i] += 10
                         }
                     }
                 }
@@ -731,9 +962,91 @@ function init() {
 
             ctx.restore()
 
-            ctx.strokeStyle = "white"
-            ctx.lineWidth = 8
-            ctx.strokeRect(g.w*0.05 , g.h*0.07, g.w*0.9, g.h*0.65)
+            // draw HUD
+
+            // health and stamina bars
+            g.sprites.hud.topleft.next(ctx, size*0.25, size*0.25, size*4.5, size*1.5)
+
+            var hStartx = snapTo(35/192*size*4.5+size*0.25,c)
+            var sStartx = snapTo(53/192*size*4.5+size*0.25,c)-1
+            var hStarty = snapTo(13/64*size*1.5+size*0.25,c)-1
+            var sStarty = snapTo(43/64*size*1.5+size*0.25,c)
+
+            var hlength = snapTo(144/192*g.save.player.health*size*4.5,c)
+            var slength = snapTo(112/192*g.save.player.stamina*size*4.5,c)
+
+            g.sprites.hud.hfill.next(ctx,hStartx,hStarty,hlength,size*1.5/8)
+            g.sprites.hud.sfill.next(ctx,sStartx,sStarty,slength,size*1.5/8)
+
+
+            // inventory
+            ctx.fillStyle = "white"
+            // ctx.fillText("rope: "+(g.save.player.inv.rope/100).toFixed(2)+" m", 0, g.h/3)
+            // ctx.fillText("scraps: "+g.save.player.inv.scraps, 0, g.h/3*2)
+
+            g.sprites.hud.rope.next(ctx,0,g.h-size, size, size)
+            g.sprites.hud.scrap.next(ctx,0,g.h-size*2, size, size)
+
+
+
+            ctx.font = Math.floor(size*0.5) + "px arcade"
+            ctx.fillText((g.save.player.inv.rope/100).toFixed(2)+" m", size*1.1, g.h-size*0.2)
+            ctx.fillText(g.save.player.inv.scraps, size*1.1, g.h-size*0.1-size)
+
+
+            if (g.save.player.map.vel) {
+                g.save.player.map.pos += g.save.player.map.vel
+                if (g.save.player.map.pos <= 0 || g.save.player.map.pos >= g.h) g.save.player.map.vel = 0
+            }
+
+            // draw map
+            if (g.save.player.map.pos < g.h) {
+
+                var xc = g.w*0.70/g.save.map[0].length
+                var yc = g.h*0.85/g.save.map.length
+
+                var mw = g.w*0.7
+                var mh = g.h*0.85
+
+                var sc
+
+                if (xc < yc) {
+                    sc = xc
+                    mh *= sc/yc
+                } else {
+                    sc = yc
+                    mw *= sc/xc
+                }
+
+                ctx.save()
+                ctx.translate(0,g.save.player.map.pos)
+
+                ctx.clearRect(g.w*0.15+g.w*0.35-mw/2, g.h*0.15-mh/2+g.h*0.425,mw,mh)
+
+                g.sprites.hud.scroll.next(ctx,g.w*0.1,g.h*0.1,g.w*0.8,g.h)
+
+                ctx.lineWidth = 6
+                ctx.strokeRect(g.w*0.15, g.h*0.15, g.w*0.7, g.h*0.85)
+
+                ctx.drawImage(g.save.player.map.ctx.canvas, g.w*0.15+g.w*0.35-mw/2, g.h*0.15-mh/2+g.h*0.425)
+
+                g.sprites.hud.mask.next(ctx,g.w*0.1,g.h*0.1,g.w*0.8,g.h)
+
+                g.sprites.player.icon.next(ctx,g.w*0.15+g.w*0.35-mw/2+g.save.player.x*sc+sc/2-sc*5/2,g.h*0.15-mh/2+g.h*0.425+g.save.player.y*sc+sc/2-sc*5/2-g.save.player.map.bounce.next().value*sc,sc*5,sc*5)
+
+                ctx.restore()
+            }
+
+            if (g.first) {
+
+                // for (var i = -gridw/2 ; i <= gridw/2 ; i++) {
+                //     for (var j = -gridh/2 ; j <= gridh/2 + 2; j++) {
+                //         console.log(j, i, g.save.map[j+g.save.player.y][i+g.save.player.x]);
+                //     }
+                // }
+
+                g.first = false
+            }
 
             yield
         }

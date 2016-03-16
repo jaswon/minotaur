@@ -7,7 +7,7 @@ function randInCircle () {
 }
 
 function snapTo(v,s) {
-    return Math.floor(v/s)*s
+    return Math.round(v/s)*s
 }
 
 function snap(v,s) {
@@ -58,13 +58,18 @@ function distSq(p,q) {
 }
 
 function drawMap(g) {
-    g.ctx.save()
-    g.ctx.translate(100,100)
     var n = g.save.map[0].length
     var cs = 3
     var d = 0
+    g.ctx.save()
+    g.ctx.translate(g.w/2-n*(cs+d)/2,g.h/2-g.save.map.length*(cs+d)/2)
     for (var i = 0 ; i < g.save.map.length ; i++) {
         for (var j = 0 ; j < n ; j++) {
+            // if (g.save.map[i][j] >= 10) {
+            //     g.ctx.fillStyle = "red"
+            // } else {
+            //     g.ctx.fillStyle = "black"
+            // }
             if (g.save.map[i][j] < 0) {
                 g.ctx.fillStyle = "black"
             } else {
@@ -75,5 +80,6 @@ function drawMap(g) {
     }
     g.ctx.fillStyle = "green"
     g.ctx.fillRect(g.save.player.x*(cs+d),g.save.player.y*(cs+d),cs,cs)
+
     g.ctx.restore()
 }
