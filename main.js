@@ -119,6 +119,7 @@ function init() {
                 })
                 ctx.fillStyle = "black"
                 ctx.fillRect(0,0,g.w,g.h) // background
+                ctx.textAlign = "left"
                 ctx.fillStyle = "white"
                 ctx.font = "30px arcade"
 
@@ -137,7 +138,32 @@ function init() {
     })(game)
 
     game.states["options"] = (function*(g){
-
+        var ctx = g.ctx
+        var fade = 0
+        while (true) {
+            if (fade) {
+                ctx.fillStyle = "rgba(0,0,0,.05)"
+                ctx.fillRect(0,0,g.w,g.h)
+                fade++
+                if (fade > 85) {
+                    g.state = "menu" // change state to gen
+                    fade = 0
+                }
+            } else {
+                ctx.fillStyle = "black"
+                ctx.fillRect(0,0,g.w,g.h)
+                processInputs(g.inq, {
+                    13: function() {
+                        fade++
+                    }
+                })
+                ctx.fillStyle = "white"
+                ctx.textAlign = "center"
+                ctx.fillText("Nothing here yet, go back!", g.w/2, g.h/2)
+                ctx.fillText("> back", g.w/2, g.h*2/3)
+            }
+            yield
+        }
     })(game)
 
     // generate map
@@ -602,7 +628,7 @@ function init() {
         g.save.player.xpart = size / 2
         g.save.player.ypart = size / 2
 
-        var vel = 4
+        g.save.player.vel = 4
         var movement = [0,0,0,0] // up, left, down, right
 
         ctx.imageSmoothingEnabled = false;
@@ -613,54 +639,63 @@ function init() {
 
         function walk() {
 
+            if (g.save.player.stamina < 0) {
+                g.save.player.vel = 0.5
+            } else if (g.save.player.stamina < 0.5) {
+                g.save.player.vel = 2
+            } else {
+                g.save.player.vel = 4
+            }
+
             if (movement[0]) { // attempt to move up
                 if (g.save.player.ypart != size / 2) {
-                    g.save.player.ypart -= vel
+                    g.save.player.ypart -= g.save.player.vel
                 } else if (!impassable(g.save.map, g.save.player.x, g.save.player.y-1)) {
                     if (g.save.player.xpart == size / 2) {
-                        g.save.player.ypart -= vel
+                        g.save.player.ypart -= g.save.player.vel
                     } else if (!impassable(g.save.map, g.save.player.x+1, g.save.player.y-1)) {
-                        g.save.player.ypart -= vel
+                        g.save.player.ypart -= g.save.player.vel
                     }
                 }
             }
             if (movement[1]) { // attempt to move left
                 if (g.save.player.xpart != size / 2) {
-                    g.save.player.xpart -= vel
+                    g.save.player.xpart -= g.save.player.vel
                 } else if (!impassable(g.save.map, g.save.player.x-1, g.save.player.y)) {
                     if (g.save.player.ypart == size / 2) {
-                        g.save.player.xpart -= vel
+                        g.save.player.xpart -= g.save.player.vel
                     } else if (!impassable(g.save.map, g.save.player.x-1, g.save.player.y+1)) {
-                        g.save.player.xpart -= vel
+                        g.save.player.xpart -= g.save.player.vel
                     }
                 }
             }
             if (movement[2]) { // attempt to move down
                 if (g.save.player.ypart != size / 2) {
-                    g.save.player.ypart += vel
+                    g.save.player.ypart += g.save.player.vel
                 } else if (!impassable(g.save.map, g.save.player.x, g.save.player.y+1)) {
                     if (g.save.player.xpart == size / 2) {
-                        g.save.player.ypart += vel
+                        g.save.player.ypart += g.save.player.vel
                     } else if (!impassable(g.save.map, g.save.player.x+1, g.save.player.y+1)) {
-                        g.save.player.ypart += vel
+                        g.save.player.ypart += g.save.player.vel
                     }
                 }
             }
             if (movement[3]) { // attempt to move right
                 if (g.save.player.xpart != size / 2) {
-                    g.save.player.xpart += vel
+                    g.save.player.xpart += g.save.player.vel
                 } else if (!impassable(g.save.map, g.save.player.x+1, g.save.player.y)) {
                     if (g.save.player.ypart == size / 2) {
-                        g.save.player.xpart += vel
+                        g.save.player.xpart += g.save.player.vel
                     } else if (!impassable(g.save.map, g.save.player.x+1, g.save.player.y+1)) {
-                        g.save.player.xpart += vel
+                        g.save.player.xpart += g.save.player.vel
                     }
                 }
             }
 
             if (movement.indexOf(1) > -1) {
                 playersprite = g.sprites.player.walk
-                g.save.player.stamina -= 0.0002
+                playersprite.delay = 32 / g.save.player.vel
+                if (g.save.player.stamina > 0 )g.save.player.stamina -= 0.0006
             } else {
                 playersprite = g.sprites.player.idle
                 if (g.save.player.stamina < 1) g.save.player.stamina += 0.0001
