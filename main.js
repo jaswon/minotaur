@@ -695,7 +695,7 @@ function init() {
             if (movement.indexOf(1) > -1) {
                 playersprite = g.sprites.player.walk
                 playersprite.delay = 32 / g.save.player.vel
-                if (g.save.player.stamina > 0 )g.save.player.stamina -= 0.0006
+                if (g.save.player.stamina > 0 )g.save.player.stamina -= 0.0002
             } else {
                 playersprite = g.sprites.player.idle
                 if (g.save.player.stamina < 1) g.save.player.stamina += 0.0001
