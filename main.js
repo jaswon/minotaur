@@ -47,11 +47,22 @@ Sprite.prototype.next = function (ctx, x, y, w, h, f) {
     ctx.drawImage(this.img, this.ax[this.c % this.ax.length], this.ay[this.c % this.ay.length], this.w, this.h, x, y, w, h)
 };
 
+function getWindowDim() {
+    var w = window,
+        d = document,
+        e = d.documentElement,
+        g = d.getElementsByTagName('body')[0],
+        x = w.innerWidth || e.clientWidth || g.clientWidth,
+        y = w.innerHeight|| e.clientHeight|| g.clientHeight;
+    return [x,y]
+}
+
 // initialize
 function init() {
     var cvs = document.querySelector('#game')
-    cvs.width = document.body.clientWidth;
-    cvs.height = document.body.clientHeight;
+    const [w,h] = getWindowDim()
+    cvs.width = w;
+    cvs.height = h;
 
     var game = {
         h: cvs.height,
